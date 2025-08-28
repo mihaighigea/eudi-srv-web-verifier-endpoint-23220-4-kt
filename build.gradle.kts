@@ -78,6 +78,7 @@ dependencies {
         because("required by json-schema-validator")
     }
     implementation(libs.aedile)
+    implementation("org.apache.kafka:kafka-clients:3.7.0")
 
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)

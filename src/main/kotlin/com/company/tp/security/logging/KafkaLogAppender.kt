@@ -18,35 +18,63 @@ package com.company.tp.security.logging
 import ch.qos.logback.classic.PatternLayout
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.AppenderBase
+import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.config.SslConfigs
 import java.util.Properties
 
-class KafkaLogAppender(
-    private val config: KafkaLoggingProperties,
-    private val producerProps: Properties,
-) : AppenderBase<ILoggingEvent>() {
+class KafkaLogAppender : AppenderBase<ILoggingEvent>() {
+    var topic: String = ""
+    var bootstrapServers: String = ""
+    var pattern: String = "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"
+    var sslKeystoreLocation: String? = null
+    var sslKeystorePassword: String? = null
+    var sslKeyPassword: String? = null
+    var sslTruststoreLocation: String? = null
+    var sslTruststorePassword: String? = null
 
     private lateinit var layout: PatternLayout
     private lateinit var producer: KafkaProducer<String, String>
 
     override fun start() {
-        super.start()
-        layout = PatternLayout().also {
-            it.context = context
-            it.pattern = config.pattern
-            it.start()
+        if (bootstrapServers.isBlank() || topic.isBlank()) {
+            addWarn("KafkaLogAppender not configured (bootstrapServers/topic missing)")
+            return
         }
-        producer = KafkaProducer(producerProps)
-    }
 
-    override fun stop() {
-        producer.close()
-        super.stop()
+        layout = PatternLayout().apply {
+            context = this@KafkaLogAppender.context
+            pattern = this@KafkaLogAppender.pattern
+            start()
+        }
+
+        val props = Properties().apply {
+            put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
+            put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+            put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+            put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
+            sslKeystoreLocation?.let { put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, it) }
+            sslKeystorePassword?.let { put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, it) }
+            sslKeyPassword?.let { put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, it) }
+            sslTruststoreLocation?.let { put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, it) }
+            sslTruststorePassword?.let { put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, it) }
+        }
+
+        producer = KafkaProducer(props)
+        super.start()
     }
 
     override fun append(eventObject: ILoggingEvent) {
         val msg = layout.doLayout(eventObject)
-        producer.send(ProducerRecord(config.topic, msg))
+        producer.send(ProducerRecord(topic, msg))
+    }
+
+    override fun stop() {
+        if (::producer.isInitialized) {
+            producer.close()
+        }
+        super.stop()
     }
 }

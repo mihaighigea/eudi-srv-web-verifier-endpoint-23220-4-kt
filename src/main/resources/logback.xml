@@ -1,11 +1,44 @@
 <configuration>
+    <springProperty scope="context" name="kafkaTopic" source="logging.kafka.topic"/>
+    <springProperty scope="context" name="kafkaBootstrapServers" source="logging.kafka.bootstrap-servers"/>
+    <springProperty scope="context" name="kafkaQueueSize" source="logging.kafka.queue-size" defaultValue="256"/>
+    <springProperty scope="context" name="kafkaDiscardingThreshold" source="logging.kafka.discarding-threshold" defaultValue="0"/>
+    <springProperty scope="context" name="kafkaPattern" source="logging.kafka.pattern"/>
+    <springProperty scope="context" name="kafkaLevel" source="logging.kafka.level"/>
+    <springProperty scope="context" name="kafkaKeystoreLocation" source="logging.kafka.ssl.keystore-location"/>
+    <springProperty scope="context" name="kafkaKeystorePassword" source="logging.kafka.ssl.keystore-password"/>
+    <springProperty scope="context" name="kafkaKeyPassword" source="logging.kafka.ssl.key-password"/>
+    <springProperty scope="context" name="kafkaTruststoreLocation" source="logging.kafka.ssl.truststore-location"/>
+    <springProperty scope="context" name="kafkaTruststorePassword" source="logging.kafka.ssl.truststore-password"/>
+
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
+    <appender name="KAFKA" class="com.company.tp.security.logging.KafkaLogAppender">
+        <topic>${kafkaTopic}</topic>
+        <bootstrapServers>${kafkaBootstrapServers}</bootstrapServers>
+        <pattern>${kafkaPattern}</pattern>
+        <sslKeystoreLocation>${kafkaKeystoreLocation}</sslKeystoreLocation>
+        <sslKeystorePassword>${kafkaKeystorePassword}</sslKeystorePassword>
+        <sslKeyPassword>${kafkaKeyPassword}</sslKeyPassword>
+        <sslTruststoreLocation>${kafkaTruststoreLocation}</sslTruststoreLocation>
+        <sslTruststorePassword>${kafkaTruststorePassword}</sslTruststorePassword>
+    </appender>
+
+    <appender name="KAFKA_ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>${kafkaQueueSize}</queueSize>
+        <discardingThreshold>${kafkaDiscardingThreshold}</discardingThreshold>
+        <appender-ref ref="KAFKA"/>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>${kafkaLevel}</level>
+        </filter>
+    </appender>
+
     <root level="INFO">
-        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="KAFKA_ASYNC"/>
     </root>
 </configuration>
